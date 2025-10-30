@@ -148,7 +148,36 @@ namespace player2_sdk
 
             try
             {
-                Debug.Log("CheckAuthenticationStatus: Attempting localhost authentication first");
+                // First, check if we have a saved token from previous session
+                Debug.Log("CheckAuthenticationStatus: Checking for saved token in PlayerPrefs");
+                var savedToken = PlayerPrefs.GetString("Player2SDK_ApiToken", "");
+                
+                if (!string.IsNullOrEmpty(savedToken))
+                {
+                    Debug.Log("CheckAuthenticationStatus: Found saved token, validating...");
+                    var tokenValid = await TokenValidator.ValidateAndSetTokenAsync(savedToken, npcManager);
+                    
+                    if (tokenValid)
+                    {
+                        Debug.Log("CheckAuthenticationStatus: Saved token is valid, authentication complete");
+                        SetState(AuthenticationState.Success);
+                        HideOverlay();
+                        authenticationCompleted.Invoke();
+                        return;
+                    }
+                    else
+                    {
+                        Debug.Log("CheckAuthenticationStatus: Saved token is invalid, clearing and proceeding with auth");
+                        PlayerPrefs.DeleteKey("Player2SDK_ApiToken");
+                        PlayerPrefs.Save();
+                    }
+                }
+                else
+                {
+                    Debug.Log("CheckAuthenticationStatus: No saved token found");
+                }
+                
+                Debug.Log("CheckAuthenticationStatus: Attempting localhost authentication");
                 var hasToken = await TryImmediateWebLogin();
 
                 if (hasToken)

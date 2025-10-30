@@ -113,6 +113,8 @@ namespace player2_sdk
 
         public string ApiKey { get; private set; }
 
+        private const string PLAYER_PREFS_TOKEN_KEY = "Player2SDK_ApiToken";
+
 
         private void Awake()
         {
@@ -160,6 +162,15 @@ namespace player2_sdk
             {
                 Debug.Log("NpcManager.NewApiKey listener: Received API key");
                 ApiKey = apiKey;
+                
+                // Save token to PlayerPrefs for persistence across sessions
+                if (!string.IsNullOrEmpty(apiKey))
+                {
+                    PlayerPrefs.SetString(PLAYER_PREFS_TOKEN_KEY, apiKey);
+                    PlayerPrefs.Save();
+                    Debug.Log("NpcManager.NewApiKey listener: API key saved to PlayerPrefs");
+                }
+                
                 Debug.Log("NpcManager.NewApiKey listener: API key set");
 
                 // For WebGL on player2.game domain, pass empty API key to skip auth headers
@@ -219,6 +230,17 @@ namespace player2_sdk
         private void OnDestroy()
         {
             if (_responseListener != null) _responseListener.StopListening();
+        }
+        
+        /// <summary>
+        /// Clears the saved authentication token from PlayerPrefs
+        /// </summary>
+        public void ClearSavedToken()
+        {
+            PlayerPrefs.DeleteKey(PLAYER_PREFS_TOKEN_KEY);
+            PlayerPrefs.Save();
+            ApiKey = null;
+            Debug.Log("NpcManager: Saved token cleared from PlayerPrefs");
         }
 
 
