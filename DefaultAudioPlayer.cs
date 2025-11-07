@@ -16,24 +16,26 @@ namespace player2_sdk
             // Validate input parameters
             if (string.IsNullOrEmpty(dataUrl))
             {
-                Debug.LogError($"Cannot play audio for {identifier}: dataUrl is null or empty");
-                yield break;
+                var errorMsg = "dataUrl is null or empty";
+                Debug.LogError($"Cannot play audio for {identifier}: {errorMsg}");
+                throw new Exception(errorMsg);
             }
 
             // Check if this is a valid data URL format
             if (!dataUrl.StartsWith("data:"))
             {
-                Debug.LogError($"Cannot play audio for {identifier}: invalid data URL format (missing 'data:' prefix)");
-                yield break;
+                var errorMsg = "Invalid data URL format (missing 'data:' prefix)";
+                Debug.LogError($"Cannot play audio for {identifier}: {errorMsg}");
+                throw new Exception(errorMsg);
             }
 
             // Find the comma that separates metadata from base64 data
             var commaIndex = dataUrl.IndexOf(',');
             if (commaIndex == -1 || commaIndex == dataUrl.Length - 1)
             {
-                Debug.LogError(
-                    $"Cannot play audio for {identifier}: invalid data URL format (missing comma or no data after comma)");
-                yield break;
+                var errorMsg = "Invalid data URL format (missing comma or no data after comma)";
+                Debug.LogError($"Cannot play audio for {identifier}: {errorMsg}");
+                throw new Exception(errorMsg);
             }
 
             // Extract base64 data from data URL
@@ -42,16 +44,18 @@ namespace player2_sdk
             // Validate that we have base64 data
             if (string.IsNullOrEmpty(base64String))
             {
-                Debug.LogError($"Cannot play audio for {identifier}: no base64 data found in data URL");
-                yield break;
+                var errorMsg = "No base64 data found in data URL";
+                Debug.LogError($"Cannot play audio for {identifier}: {errorMsg}");
+                throw new Exception(errorMsg);
             }
 
 
             // Additional validation: check for valid base64 characters
             if (!IsValidBase64String(base64String))
             {
-                Debug.LogError($"Cannot play audio for {identifier}: extracted string is not valid Base64");
-                yield break;
+                var errorMsg = "Extracted string is not valid Base64";
+                Debug.LogError($"Cannot play audio for {identifier}: {errorMsg}");
+                throw new Exception(errorMsg);
             }
 
             byte[] audioBytes;
@@ -67,9 +71,11 @@ namespace player2_sdk
             {
                 // Log additional context for Base64 decoding failures
                 var base64Preview = base64String.Length > 50 ? base64String.Substring(0, 50) + "..." : base64String;
-                Debug.LogError(
-                    $"Cannot play audio for {identifier}: Base64 decoding failed: {ex.Message}. Base64 data length: {base64String.Length}, Preview: {base64Preview}");
-                yield break;
+                var errorMsg = $"Base64 decoding failed: {ex.Message}. Base64 data length: {base64String.Length}, Preview: {base64Preview}";
+                Debug.LogError($"Cannot play audio for {identifier}: {errorMsg}");
+                
+                // THROW instead of yield break so error can be caught by PlayAudioWithDelay
+                throw new Exception(errorMsg);
             }
 
             // Write to temp file with random name
@@ -81,9 +87,9 @@ namespace player2_sdk
             }
             catch (Exception ex)
             {
-                Debug.LogError(
-                    $"Cannot play audio for {identifier}: failed to write audio data to temp file: {ex.Message}");
-                yield break;
+                var errorMsg = $"Failed to write audio data to temp file: {ex.Message}";
+                Debug.LogError($"Cannot play audio for {identifier}: {errorMsg}");
+                throw new Exception(errorMsg);
             }
 
             // Load and play
@@ -93,24 +99,22 @@ namespace player2_sdk
 
                 if (request.result == UnityWebRequest.Result.Success)
                 {
-                    try
+                    var clip = DownloadHandlerAudioClip.GetContent(request);
+                    if (clip != null)
                     {
-                        var clip = DownloadHandlerAudioClip.GetContent(request);
-                        if (clip != null)
+                        // Validate clip - FMOD errors don't throw exceptions, they just create invalid clips
+                        if (clip.length <= 0f)
                         {
-                            audioSource.clip = clip;
-                            audioSource.Play();
-                            Debug.Log($"Playing audio for {identifier} (duration: {clip.length}s)");
+                            throw new Exception($"Invalid audio clip (duration: {clip.length}s). FMOD may have failed to decode the audio format.");
                         }
-                        else
-                        {
-                            Debug.LogError(
-                                $"Cannot play audio for {identifier}: failed to create AudioClip from downloaded data");
-                        }
+                        
+                        audioSource.clip = clip;
+                        audioSource.Play();
+                        Debug.Log($"Playing audio for {identifier} (duration: {clip.length}s)");
                     }
-                    catch (Exception ex)
+                    else
                     {
-                        Debug.LogError($"Cannot play audio for {identifier}: error setting up AudioClip: {ex.Message}");
+                        throw new Exception("AudioClip is null after download");
                     }
                 }
                 else

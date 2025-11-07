@@ -15,6 +15,12 @@ namespace player2_sdk
         [SerializeField] private Button upgradeButton;
         private readonly float pollIntervalSeconds = 5f;
         private bool pollStarted;
+        private int currentJoulesValue = 0; // Cached joules value
+
+        /// <summary>
+        /// Get the current joules value (updated every 5 seconds)
+        /// </summary>
+        public int GetCurrentJoules() => currentJoulesValue;
 
         private void Start()
         {
@@ -110,6 +116,9 @@ namespace player2_sdk
                         Debug.LogWarning($"Failed to parse /joules response: {body}");
                         return;
                     }
+
+                // Cache the joules value for external access
+                currentJoulesValue = joulesValue;
 
                 if (joulesValue == 0)
                 {
